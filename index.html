@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Villa Enrichment Tool</title>
+  <meta name="description" content="AI-powered contact enrichment for vacation rental listings using Gemini API">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-primary: #08080f;
+      --bg-card: rgba(18, 18, 30, 0.75);
+      --bg-card-hover: rgba(24, 24, 42, 0.85);
+      --border: rgba(255, 255, 255, 0.06);
+      --border-focus: rgba(99, 140, 255, 0.5);
+      --accent: #638cff;
+      --accent-glow: rgba(99, 140, 255, 0.15);
+      --text-primary: #e8eaf0;
+      --text-secondary: #8b8fa3;
+      --text-muted: #555870;
+      --conf-high: #34d399;
+      --conf-high-bg: rgba(52, 211, 153, 0.12);
+      --conf-med: #fbbf24;
+      --conf-med-bg: rgba(251, 191, 36, 0.12);
+      --conf-low: #f87171;
+      --conf-low-bg: rgba(248, 113, 113, 0.12);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    html { font-size: 15px; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,140,255,0.08), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(139,92,246,0.06), transparent);
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 2.5rem; }
+    .header h1 {
+      font-size: 1.75rem; font-weight: 800; letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #e8eaf0 30%, var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .header p { color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.35rem; }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(16px);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: rgba(255,255,255,0.1); }
+    .card-title {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 1rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .card-title .icon { font-size: 1rem; }
+
+    /* Settings row */
+    .settings-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (max-width: 640px) { .settings-row { grid-template-columns: 1fr; } }
+    .setting-group label {
+      display: block; font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--text-muted); margin-bottom: 0.3rem;
+    }
+    .setting-group input, .setting-group select {
+      width: 100%; padding: 0.55rem 0.75rem; font-size: 0.85rem;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s;
+    }
+    .setting-group input:focus, .setting-group select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .setting-group select option { background: #1a1a2e; color: var(--text-primary); }
+
+    /* Textarea */
+    textarea {
+      width: 100%; padding: 0.85rem 1rem; font-size: 0.82rem;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      resize: vertical; outline: none; transition: border-color 0.2s;
+      line-height: 1.5;
+    }
+    textarea:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px var(--accent-glow); }
+    textarea::placeholder { color: var(--text-muted); }
+    textarea.output-area { background: rgba(52,211,153,0.03); border-color: rgba(52,211,153,0.15); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.65rem 1.5rem; font-size: 0.85rem; font-weight: 600;
+      font-family: 'Inter', sans-serif; border: none; border-radius: var(--radius-sm);
+      cursor: pointer; transition: all 0.2s; outline: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: #fff; box-shadow: 0 2px 12px rgba(99,140,255,0.25);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(99,140,255,0.35); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled {
+      opacity: 0.5; cursor: not-allowed; transform: none;
+      box-shadow: none;
+    }
+    .btn-copy {
+      background: rgba(52,211,153,0.12); color: var(--conf-high);
+      border: 1px solid rgba(52,211,153,0.2);
+    }
+    .btn-copy:hover { background: rgba(52,211,153,0.2); }
+
+    /* Preview panel */
+    .preview-toggle {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+      cursor: pointer; user-select: none; padding: 0.5rem 0; margin-top: 0.5rem;
+    }
+    .preview-toggle .arrow { transition: transform 0.2s; font-size: 0.65rem; }
+    .preview-toggle.open .arrow { transform: rotate(90deg); }
+    .preview-content {
+      max-height: 0; overflow: hidden; transition: max-height 0.35s ease;
+    }
+    .preview-content.open { max-height: 2000px; }
+    .preview-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 0.2rem; padding: 0.75rem 0;
+    }
+    .preview-item {
+      display: flex; gap: 0.5rem; padding: 0.3rem 0.5rem;
+      border-radius: 4px; font-size: 0.72rem;
+    }
+    .preview-item:hover { background: rgba(255,255,255,0.03); }
+    .preview-num {
+      color: var(--text-muted); white-space: nowrap; min-width: 28px;
+      flex-shrink: 0; text-align: right; font-weight: 600;
+    }
+    .preview-col-name {
+      color: var(--text-secondary); white-space: nowrap; flex-shrink: 0;
+      min-width: 130px; max-width: 130px; overflow: hidden;
+      text-overflow: ellipsis; font-weight: 500;
+    }
+    .preview-col-name.enrichable-label { color: var(--accent); }
+    .preview-value {
+      color: var(--text-primary); overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; flex: 1;
+    }
+    .preview-value.empty { color: var(--text-muted); font-style: italic; }
+    .preview-value.enrichable { color: var(--accent); font-weight: 500; }
+
+    /* Loading */
+    .loading-bar {
+      height: 3px; border-radius: 2px; background: rgba(255,255,255,0.06);
+      overflow: hidden; margin: 1rem 0;
+    }
+    .loading-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--accent), #8b5cf6, var(--accent));
+      background-size: 200% 100%;
+      animation: shimmer 1.5s linear infinite;
+      transition: width 0.5s ease;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .loading-status {
+      font-size: 0.78rem; color: var(--text-secondary);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .loading-spinner {
+      width: 14px; height: 14px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Report table */
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .report-table th {
+      text-align: left; padding: 0.6rem 0.75rem; font-size: 0.7rem;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--text-muted); border-bottom: 1px solid var(--border);
+    }
+    .report-table td {
+      padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .report-table tr:last-child td { border-bottom: none; }
+    .report-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .field-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+    .field-value {
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem;
+      color: var(--conf-high); word-break: break-all; max-width: 260px;
+    }
+    .field-value-link {
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem;
+      color: var(--accent); word-break: break-all; max-width: 260px;
+      text-decoration: none; border-bottom: 1px solid rgba(99,140,255,0.35);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .field-value-link:hover { color: #fff; border-color: rgba(99,140,255,0.8); }
+    .source-link {
+      color: var(--text-secondary); font-size: 0.72rem;
+      text-decoration: none; border-bottom: 1px dashed rgba(255,255,255,0.2);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .source-link:hover { color: var(--accent); border-color: rgba(99,140,255,0.6); }
+    .badge {
+      display: inline-flex; align-items: center; padding: 0.15rem 0.5rem;
+      border-radius: 999px; font-size: 0.65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .badge-high { background: var(--conf-high-bg); color: var(--conf-high); }
+    .badge-medium { background: var(--conf-med-bg); color: var(--conf-med); }
+    .badge-low { background: var(--conf-low-bg); color: var(--conf-low); }
+    .source-text { font-size: 0.72rem; color: var(--text-secondary); max-width: 250px; }
+
+    /* Pass log */
+    .pass-log { margin-top: 0.5rem; }
+    .pass-entry {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      padding: 0.35rem 0; font-size: 0.75rem;
+    }
+    .pass-num {
+      background: rgba(99,140,255,0.15); color: var(--accent); font-weight: 700;
+      font-size: 0.65rem; padding: 0.15rem 0.4rem; border-radius: 4px;
+      white-space: nowrap; min-width: 52px; text-align: center;
+    }
+    .pass-num.active {
+      background: rgba(251,191,36,0.2); color: var(--conf-med);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .pass-num.done { background: rgba(52,211,153,0.15); color: var(--conf-high); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .pass-desc { color: var(--text-secondary); }
+    .pass-findings { color: var(--conf-high); font-weight: 600; }
+
+    /* Lens link */
+    .lens-bar {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 1rem; margin-bottom: 0.5rem;
+      background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.18);
+      border-radius: var(--radius-sm);
+    }
+    .lens-bar .lens-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .lens-bar .lens-info { flex: 1; font-size: 0.75rem; color: var(--text-secondary); }
+    .btn-lens {
+      background: rgba(139,92,246,0.15); color: #a78bfa;
+      border: 1px solid rgba(139,92,246,0.3); white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-lens:hover { background: rgba(139,92,246,0.25); }
+
+    /* Maps link */
+    .maps-link-bar {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem 1rem; margin-bottom: 1rem;
+      background: rgba(99,140,255,0.07); border: 1px solid rgba(99,140,255,0.18);
+      border-radius: var(--radius-sm);
+    }
+    .maps-link-bar .maps-icon { font-size: 1.2rem; flex-shrink: 0; }
+    .maps-link-bar .maps-info { flex: 1; }
+    .maps-link-bar .maps-info .maps-label {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-muted);
+    }
+    .maps-link-bar .maps-info .maps-coords {
+      font-size: 0.75rem; color: var(--text-secondary); font-family: 'SF Mono','Fira Code',monospace;
+    }
+    .btn-maps {
+      background: rgba(99,140,255,0.15); color: var(--accent);
+      border: 1px solid rgba(99,140,255,0.3); white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-maps:hover { background: rgba(99,140,255,0.25); }
+    .btn-maps-biz {
+      background: rgba(52,211,153,0.1); color: var(--conf-high);
+      border: 1px solid rgba(52,211,153,0.25); white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-maps-biz:hover { background: rgba(52,211,153,0.2); }
+
+    /* Search queries */
+    .search-queries {
+      margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border);
+    }
+    .search-queries h4 {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 0.5rem;
+    }
+    .search-query {
+      font-size: 0.72rem; color: var(--text-secondary); padding: 0.2rem 0;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: var(--conf-high); color: #000; padding: 0.5rem 1.25rem;
+      border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+      opacity: 0; transition: all 0.3s ease; z-index: 100;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* Section visibility */
+    .hidden { display: none !important; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .container { padding: 1rem; }
+      .preview-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Map Grounding Section ─────────────────────────────── */
+    .section-divider {
+      display: flex; align-items: center; gap: 1rem;
+      margin: 2.5rem 0 1.5rem;
+    }
+    .section-divider-line {
+      flex: 1; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+    .section-divider-label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-muted); white-space: nowrap;
+    }
+
+    .map-coord-row {
+      display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem;
+      align-items: flex-end; margin-bottom: 1rem;
+    }
+    @media (max-width: 580px) {
+      .map-coord-row { grid-template-columns: 1fr 1fr; }
+      .map-coord-row .btn { grid-column: 1 / -1; }
+    }
+
+    .map-radius-row {
+      display: flex; gap: 0.75rem; align-items: center;
+      margin-bottom: 1.25rem; flex-wrap: wrap;
+    }
+    .map-radius-row label {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-muted); white-space: nowrap;
+    }
+    .map-radius-row select {
+      padding: 0.45rem 0.7rem; font-size: 0.82rem;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-family: 'Inter', sans-serif; outline: none;
+    }
+    .map-radius-row select:focus { border-color: var(--border-focus); }
+    .map-radius-row select option { background: #1a1a2e; }
+    .map-type-pills {
+      display: flex; gap: 0.4rem; flex-wrap: wrap;
+    }
+    .map-type-pill {
+      padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.72rem;
+      font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04); color: var(--text-secondary);
+      transition: all 0.18s;
+    }
+    .map-type-pill:hover { border-color: var(--accent); color: var(--accent); }
+    .map-type-pill.active {
+      background: rgba(99,140,255,0.15); border-color: var(--accent); color: var(--accent);
+    }
+
+    /* Map status bar */
+    .map-status {
+      font-size: 0.78rem; color: var(--text-secondary);
+      padding: 0.5rem 0; min-height: 1.4rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .map-status .map-spinner {
+      width: 13px; height: 13px; border: 2px solid var(--border);
+      border-top-color: #a78bfa; border-radius: 50%;
+      animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+
+    /* Place card grid */
+    .place-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .place-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      display: flex; flex-direction: column;
+    }
+    .place-card:hover {
+      border-color: rgba(99,140,255,0.35);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+    /* Photo carousel */
+    .place-carousel {
+      position: relative;
+      background: #000;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border-radius: 0;
+    }
+    .place-carousel-track {
+      display: flex;
+      width: 100%; height: 100%;
+      transition: transform 0.3s ease;
+    }
+    .place-carousel-slide {
+      flex: 0 0 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.5);
+    }
+    .place-carousel-slide img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .place-photo-placeholder {
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,0.04);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; color: var(--text-muted);
+    }
+    .carousel-btn {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #fff; font-size: 1.1rem; line-height: 1;
+      width: 28px; height: 28px; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s; z-index: 2; padding: 0;
+      user-select: none;
+    }
+    .carousel-btn:hover { background: rgba(0,0,0,0.8); }
+    .carousel-btn.prev { left: 6px; }
+    .carousel-btn.next { right: 6px; }
+    .carousel-dots {
+      position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 4px; z-index: 2;
+    }
+    .carousel-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: rgba(255,255,255,0.35); transition: background 0.2s;
+    }
+    .carousel-dot.active { background: #fff; }
+    /* Contact info in card */
+    .place-contact {
+      display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.15rem;
+    }
+    .place-contact a {
+      font-size: 0.68rem; color: var(--accent); text-decoration: none;
+      display: flex; align-items: center; gap: 0.3rem; word-break: break-all;
+    }
+    .place-contact a:hover { text-decoration: underline; }
+    .place-contact span {
+      font-size: 0.68rem; color: var(--text-secondary);
+      display: flex; align-items: center; gap: 0.3rem;
+    }
+    /* Place info */
+    .place-info {
+      padding: 0.75rem; flex: 1; display: flex; flex-direction: column; gap: 0.3rem;
+    }
+    .place-name {
+      font-size: 0.82rem; font-weight: 700; color: var(--text-primary);
+      line-height: 1.3; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .place-meta {
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .place-rating {
+      font-size: 0.72rem; font-weight: 700; color: #fbbf24;
+    }
+    .place-reviews {
+      font-size: 0.68rem; color: var(--text-muted);
+    }
+    .place-type {
+      font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-muted);
+      background: rgba(255,255,255,0.06); padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+    }
+    .place-address {
+      font-size: 0.7rem; color: var(--text-secondary);
+      line-height: 1.4; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .place-distance {
+      font-size: 0.68rem; color: var(--text-muted);
+    }
+    .place-actions {
+      display: flex; gap: 0.4rem; margin-top: 0.4rem; flex-wrap: wrap;
+    }
+    .btn-place {
+      flex: 1; min-width: 80px; padding: 0.38rem 0.6rem;
+      font-size: 0.7rem; font-weight: 600;
+      font-family: 'Inter', sans-serif; border: none;
+      border-radius: 6px; cursor: pointer; transition: all 0.18s;
+      text-align: center; text-decoration: none; display: inline-flex;
+      align-items: center; justify-content: center; gap: 0.3rem;
+    }
+    .btn-place-maps {
+      background: rgba(99,140,255,0.15); color: var(--accent);
+      border: 1px solid rgba(99,140,255,0.25);
+    }
+    .btn-place-maps:hover { background: rgba(99,140,255,0.28); }
+    .btn-place-street {
+      background: rgba(52,211,153,0.1); color: var(--conf-high);
+      border: 1px solid rgba(52,211,153,0.2);
+    }
+    .btn-place-street:hover { background: rgba(52,211,153,0.2); }
+    .map-empty {
+      text-align: center; padding: 2rem 1rem; color: var(--text-muted);
+      font-size: 0.82rem; grid-column: 1 / -1;
+    }
+    .map-empty .map-empty-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .map-api-note {
+      font-size: 0.72rem; color: var(--text-muted);
+      padding: 0.6rem 0.85rem;
+      background: rgba(251,191,36,0.06);
+      border: 1px solid rgba(251,191,36,0.15);
+      border-radius: var(--radius-sm);
+      line-height: 1.5; margin-bottom: 1rem;
+    }
+    .map-api-note a { color: #fbbf24; }
+    .map-result-header {
+      font-size: 0.72rem; color: var(--text-secondary);
+      padding: 0.5rem 0 0.25rem;
+      border-top: 1px solid var(--border);
+      margin-top: 0.5rem;
+    }
+    .map-result-header strong { color: var(--text-primary); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🏠 Villa Enrichment Tool</h1>
+      <p>AI-powered contact enrichment for vacation rental listings</p>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings-row">
+      <div class="setting-group">
+        <label for="api-key">Gemini API Key</label>
+        <input type="password" id="api-key" placeholder="AIza..." autocomplete="off">
+      </div>
+      <div class="setting-group">
+        <label for="model-select">Model</label>
+        <select id="model-select">
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro (deepest)</option>
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash (fast + smart)</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+          <option value="gemini-1.5-flash">Gemini 1.5 Flash (lightest)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Input Section -->
+    <div class="card" id="input-card">
+      <div class="card-title"><span class="icon">📋</span> Paste Excel Row (TSV)</div>
+      <textarea id="input-area" rows="5" placeholder="Paste one tab-separated row from Excel here…"></textarea>
+
+      <!-- Preview toggle -->
+      <div class="preview-toggle" id="preview-toggle" onclick="togglePreview()">
+        <span class="arrow">▶</span> Parsed Preview (74 columns)
+      </div>
+      <div class="preview-content" id="preview-content">
+        <div class="preview-grid" id="preview-grid"></div>
+      </div>
+
+      <div style="margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center;">
+        <button class="btn btn-primary" id="enrich-btn" onclick="handleEnrich()">
+          🔍 Enrich
+        </button>
+        <span id="column-count" style="font-size: 0.72rem; color: var(--text-muted);"></span>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="card hidden" id="loading-card">
+      <div class="loading-status">
+        <div class="loading-spinner"></div>
+        <span id="loading-text">Initializing…</span>
+      </div>
+      <div class="loading-bar">
+        <div class="loading-bar-fill" id="loading-bar"></div>
+      </div>
+      <div class="pass-log" id="pass-log"></div>
+    </div>
+
+    <!-- Section A: Enriched Row -->
+    <div class="card hidden" id="output-card">
+      <div class="card-title"><span class="icon">✅</span> Copy-Back Row — Paste this directly into Excel</div>
+      <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.75rem; line-height:1.5;">
+        This is your <strong style="color:var(--text-primary)">complete row with enriched data filled in</strong>, formatted exactly like the Excel file (tab-separated, 74 columns). Select the original row in Excel, then click <em>Copy Row</em> below and paste it over with <kbd style="background:rgba(255,255,255,0.08);padding:0.1rem 0.35rem;border-radius:3px;font-size:0.72rem;">Ctrl+V</kbd>.
+      </p>
+      <textarea id="output-area" class="output-area" rows="4" readonly></textarea>
+      <div style="margin-top: 0.75rem;">
+        <button class="btn btn-copy" onclick="copyRow()">📋 Copy Row to Clipboard</button>
+      </div>
+    </div>
+
+    <!-- Section B: Enrichment Report -->
+    <div class="card hidden" id="report-card">
+      <div class="card-title"><span class="icon">📊</span> Section B — Enrichment Report</div>
+      <div id="report-body"></div>
+    </div>
+
+    <!-- ─── MAP GROUNDING SECTION ──────────────────────────────── -->
+    <div class="section-divider">
+      <div class="section-divider-line"></div>
+      <div class="section-divider-label">🗺️ Map Grounding</div>
+      <div class="section-divider-line"></div>
+    </div>
+
+    <div class="card" id="map-grounding-card">
+      <div class="card-title"><span class="icon">🗺️</span> Nearby Property Scanner</div>
+      <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:1rem;line-height:1.5;">
+        Paste the <strong style="color:var(--text-primary)">Latitude &amp; Longitude</strong> from your spreadsheet row to scan nearby vacation rentals and hotels on Google Maps — with photos for each result.
+      </p>
+
+      <!-- Google Maps API Key -->
+      <div class="setting-group" style="margin-bottom:1rem;">
+        <label for="maps-api-key">Google Maps API Key <span style="color:var(--text-muted);font-weight:400;text-transform:none;">(Places API enabled)</span></label>
+        <input type="password" id="maps-api-key" placeholder="AIza..." autocomplete="off" style="max-width:420px;">
+      </div>
+      <div class="map-api-note">
+        ℹ️ Requires a Google Cloud API key with <strong>Places API (New)</strong> enabled.
+        <a href="https://console.cloud.google.com/apis/library/places-backend.googleapis.com" target="_blank" rel="noopener">Enable it here</a>.
+        The key is saved in your browser only.
+      </div>
+
+      <!-- Coordinates input row -->
+      <div class="map-coord-row">
+        <div class="setting-group">
+          <label for="map-lat">Latitude</label>
+          <input type="text" id="map-lat" placeholder="e.g. -8.6815" autocomplete="off">
+        </div>
+        <div class="setting-group">
+          <label for="map-lng">Longitude</label>
+          <input type="text" id="map-lng" placeholder="e.g. 115.1694" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" id="map-scan-btn" onclick="handleMapScan()">🔍 Scan Area</button>
+      </div>
+
+      <!-- Options row -->
+      <div class="map-radius-row">
+        <label>Radius:</label>
+        <select id="map-radius">
+          <option value="100" selected>100 m</option>
+          <option value="200">200 m</option>
+          <option value="300">300 m</option>
+          <option value="500">500 m</option>
+        </select>
+        <label style="margin-left:0.5rem;">Type:</label>
+        <div class="map-type-pills" id="map-type-pills">
+          <span class="map-type-pill active" data-type="lodging" onclick="toggleMapType(this)">🏠 Lodging</span>
+          <span class="map-type-pill active" data-type="real_estate_agency" onclick="toggleMapType(this)">🏡 Real Estate</span>
+          <span class="map-type-pill" data-type="tourist_attraction" onclick="toggleMapType(this)">🌟 Attraction</span>
+          <span class="map-type-pill" data-type="point_of_interest" onclick="toggleMapType(this)">📍 POI</span>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="map-status" id="map-status"></div>
+
+      <!-- Results -->
+      <div class="place-grid" id="place-grid"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">Copied to clipboard!</div>
+
+  <script>
+    // ─── COLUMN DEFINITIONS ────────────────────────────────
+    const COLUMNS = [
+      "Sales pers.","Listing URL","Outreach Action","listingCount",
+      "Message v1","Message v2","Message v3","Wow'em msg",
+      "Airbnb name","Outreach Status",
+      "Last Contact Date (MM-DD-YY)","Follow-Up Date (MM-DD-YY)",
+      "Outreach Notes","First contact (mm-dd-yy)","Attempts",
+      "Phone","Phone confidence","Phone2","Phone2 confidence",
+      "Website","Website confidence","Email","Email confidence",
+      "Instagram","Instagram confidence","Facebook",
+      "Insta Status","Other Soc. Media","Phone evidence","Phone2 evidence",
+      "Occupancy","Market Avg. Occupancy","Market Average Occupancy","Occupancy Gap",
+      "Overall Rating","Number of Reviews","Revenue Potential Gap",
+      "Revenue","Market avg. revenue","Revenue Potential","ADR","Market avg. ADR",
+      "Title","Outreach Channel","Phone source","Phone belongs to",
+      "villaName","currency","Property Manager/Host",
+      "Days Available","Bedrooms","Bathrooms","Accommodates",
+      "Amenities","Has Pool","Minimum Stay","Host Unit Count","Price Tier",
+      "Airbnb Superhost","Cleaning Fee","Instant Book",
+      "Reserved Days","Number of Bookings","Last Update",
+      "City","State","Country","Main Listing Image",
+      "Airbnb Property ID","Vrbo Property ID","Latitude","Longitude",
+      "Villa name","Contact"
+    ];
+    const COL = {};
+    COLUMNS.forEach((n, i) => COL[n] = i);
+
+    // Enrichable field indices
+    const ENRICHABLE = new Set([
+      COL["Phone"], COL["Phone confidence"], COL["Phone2"], COL["Phone2 confidence"],
+      COL["Website"], COL["Website confidence"], COL["Email"], COL["Email confidence"],
+      COL["Instagram"], COL["Instagram confidence"], COL["Facebook"],
+      COL["Other Soc. Media"], COL["Phone evidence"], COL["Phone2 evidence"],
+      COL["Phone source"], COL["Phone belongs to"],
+    ]);
+
+    // ─── STATE ─────────────────────────────────────────────
+    let parsedFields = [];
+    let enrichedRow = [];
+
+    // ─── INIT ──────────────────────────────────────────────
+    (function init() {
+      const saved = localStorage.getItem('villa_enrich_apikey');
+      if (saved) document.getElementById('api-key').value = saved;
+      const savedModel = localStorage.getItem('villa_enrich_model');
+      if (savedModel) {
+        const sel = document.getElementById('model-select');
+        for (const opt of sel.options) {
+          if (opt.value === savedModel) { sel.value = savedModel; break; }
+        }
+      }
+      document.getElementById('api-key').addEventListener('change', (e) => {
+        localStorage.setItem('villa_enrich_apikey', e.target.value);
+      });
+      document.getElementById('model-select').addEventListener('change', (e) => {
+        localStorage.setItem('villa_enrich_model', e.target.value);
+      });
+      // Auto-parse on paste
+      document.getElementById('input-area').addEventListener('input', () => {
+        parsedFields = parseTSVRow(document.getElementById('input-area').value);
+        renderPreview();
+        // Auto-fill Nearby Property Scanner coordinates
+        const lat = (parsedFields[COL['Latitude']]  || '').trim();
+        const lng = (parsedFields[COL['Longitude']] || '').trim();
+        if (lat && !isNaN(parseFloat(lat))) {
+          document.getElementById('map-lat').value = lat;
+        }
+        if (lng && !isNaN(parseFloat(lng))) {
+          document.getElementById('map-lng').value = lng;
+        }
+      });
+    })();
+
+    // ─── TSV PARSING ───────────────────────────────────────
+    function parseTSVRow(text) {
+      text = text.replace(/[\r\n]+$/, '');
+      if (!text.trim()) return [];
+      const fields = [];
+      let i = 0;
+      while (i <= text.length) {
+        if (i === text.length) { fields.push(''); break; }
+        if (text[i] === '"') {
+          let field = ''; i++;
+          while (i < text.length) {
+            if (text[i] === '"') {
+              if (i + 1 < text.length && text[i + 1] === '"') {
+                field += '"'; i += 2;
+              } else { i++; break; }
+            } else { field += text[i]; i++; }
+          }
+          fields.push(field);
+          if (i < text.length && text[i] === '\t') i++;
+        } else {
+          let field = '';
+          while (i < text.length && text[i] !== '\t') {
+            field += text[i]; i++;
+          }
+          fields.push(field);
+          if (i < text.length && text[i] === '\t') i++;
+          else break;
+        }
+      }
+      return fields;
+    }
+
+    // ─── TSV OUTPUT ────────────────────────────────────────
+    function fieldsToTSV(fields) {
+      return fields.map(f => {
+        const s = String(f ?? '');
+        if (s.includes('\t') || s.includes('\n') || s.includes('\r') || s.includes('"')) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      }).join('\t');
+    }
+
+    // ─── PREVIEW ───────────────────────────────────────────
+    function renderPreview() {
+      const grid = document.getElementById('preview-grid');
+      const count = document.getElementById('column-count');
+      if (parsedFields.length === 0) {
+        grid.innerHTML = '<div style="color:var(--text-muted); font-size:0.75rem; padding:0.5rem;">No data parsed yet.</div>';
+        count.textContent = '';
+        return;
+      }
+      count.textContent = `${parsedFields.length} columns parsed${parsedFields.length !== 74 ? ' ⚠️ expected 74' : ' ✓'}`;
+      count.style.color = parsedFields.length === 74 ? 'var(--conf-high)' : 'var(--conf-med)';
+      let html = '';
+      for (let i = 0; i < Math.max(parsedFields.length, 74); i++) {
+        const name = COLUMNS[i] || `Col ${i + 1}`;
+        const val = parsedFields[i] ?? '';
+        const isEmpty = !val.trim();
+        const isEnrichable = ENRICHABLE.has(i);
+        const valCls = isEmpty ? (isEnrichable ? 'enrichable' : 'empty') : '';
+        const nameCls = isEnrichable ? 'enrichable-label' : '';
+        const display = isEmpty ? (isEnrichable ? '(will enrich)' : '(empty)') : val.length > 45 ? val.slice(0, 45) + '…' : val;
+        html += `<div class="preview-item">
+          <span class="preview-num">${i + 1}.</span>
+          <span class="preview-col-name ${nameCls}" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+          <span class="preview-value ${valCls}" title="${val.replace(/"/g,'&quot;')}">${escapeHtml(display)}</span>
+        </div>`;
+      }
+      grid.innerHTML = html;
+    }
+
+    function togglePreview() {
+      const toggle = document.getElementById('preview-toggle');
+      const content = document.getElementById('preview-content');
+      toggle.classList.toggle('open');
+      content.classList.toggle('open');
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ─── FIELD HELPERS ─────────────────────────────────────
+    function getPropertyData(fields) {
+      const g = (name) => (fields[COL[name]] || '').trim();
+      return {
+        title: g('Title'), villaName: g('villaName') || g('Villa name') || g('Airbnb name'),
+        host: g('Property Manager/Host'), city: g('City') || 'Unknown', state: g('State'),
+        country: g('Country'), listingUrl: g('Listing URL'), airbnbId: g('Airbnb Property ID'),
+        vrboId: g('Vrbo Property ID'), lat: g('Latitude'), lng: g('Longitude'),
+        mainImage: g('Main Listing Image'), bedrooms: g('Bedrooms'),
+        accommodates: g('Accommodates'), hasPool: g('Has Pool'),
+        phone: g('Phone'), website: g('Website'), email: g('Email'),
+        instagram: g('Instagram'), facebook: g('Facebook'),
+        get location() { return [this.city, this.state, this.country].filter(Boolean).join(', '); },
+        get name() { return this.villaName || this.title || 'Unknown property'; },
+      };
+    }
+
+    const BLOCKLIST = 'airbnb.com, vrbo.com, booking.com, expedia.com, hotels.com, agoda.com, tripadvisor.com, trip.com, traveloka.com, tiket.com, kayak.com, trivago.com, hostelworld.com, priceline.com, google.com/travel, lokavilla.com, balivillaescapes.com.au, balivillaexotic.com, 123reserve.com, matapropertybali.com, semuabis.com, spokeo.com, truecaller.com, whitepages.com, yellowpages.com, 411.com, beenverified.com, intelius.com, web.archive.org';
+
+    const JSON_SCHEMA = `{
+  "phone": {"value": "", "confidence": "", "source": "", "evidence": "", "belongs_to": ""},
+  "phone2": {"value": "", "confidence": "", "source": "", "evidence": ""},
+  "website": {"value": "", "confidence": "", "source": ""},
+  "email": {"value": "", "confidence": "", "source": ""},
+  "instagram": {"value": "", "confidence": "", "source": ""},
+  "facebook": {"value": "", "source": ""},
+  "other_social": {"value": "", "source": ""},
+  "maps_url": {"value": "", "source": ""},
+  "identified_name": {"value": "", "source": ""}
+}`;
+
+    const VALIDATION_RULES = `
+- Phone: MUST be international format (+country code). Reject 5+ consecutive identical digits.
+- Email: REJECT generic prefixes (info@, contact@, hello@, support@, admin@, noreply@, booking@, reservations@, webmaster@, marketing@). Only personal/specific emails.
+- Instagram & Facebook: FULL URL (https://instagram.com/name), NOT just @handle.
+- Website: Villa's OWN direct booking site, NOT an OTA or aggregator.
+- Other Social Media: Comma-separated full URLs.
+- Confidence: "High" = official website or verified Google Business Profile. "Medium" = 2+ independent sources. "Low" = single third-party source. Below Low = leave EMPTY.
+- NEVER invent or fabricate data. If unsure, leave value as "".
+- maps_url: Google Maps Business Profile URL only if verified match. Leave empty if not found.`;
+
+    // ─── PASS 1: WEBSITE + PHONE + EMAIL ──────────────────
+    function buildPass1Prompt(p) {
+      return `You are a vacation rental contact data researcher. Your SOLE FOCUS is finding the property's WEBSITE, PHONE NUMBER(S), and EMAIL.
+
+Take your time. Be thorough. Execute EVERY search below — do not stop early.
+
+=== PROPERTY ===
+Title: ${p.title || 'N/A'} | Villa Name: ${p.villaName || 'N/A'}
+Host/Manager: ${p.host || 'N/A'} | Location: ${p.location}
+Airbnb URL: ${p.listingUrl || 'N/A'} | Airbnb ID: ${p.airbnbId || 'N/A'} | VRBO ID: ${p.vrboId || 'N/A'}
+Coordinates: ${p.lat || 'N/A'}, ${p.lng || 'N/A'}
+Bedrooms: ${p.bedrooms || 'N/A'} | Accommodates: ${p.accommodates || 'N/A'} | Pool: ${p.hasPool || 'N/A'}
+${p.phone ? `Current Phone (verify): ${p.phone}` : ''}
+${p.website ? `Current Website (verify): ${p.website}` : ''}
+${p.email ? `Current Email (verify): ${p.email}` : ''}
+
+=== MANDATORY SEARCHES (execute ALL of these, one by one) ===
+1. "${p.name}" ${p.city} website
+2. "${p.name}" ${p.city} direct booking
+3. "${p.name}" ${p.city} contact phone email
+4. "${p.host || p.name}" ${p.city} vacation rental host
+5. "${p.name}" ${p.city} phone number WhatsApp
+6. site:google.com/maps "${p.name}" ${p.city}
+7. "${p.name}" ${p.city} book now OR reserve OR check availability
+8. If you find a website → search that website's /contact page, /about page, and footer for phone and email
+
+=== BLOCKLIST (never extract from) === ${BLOCKLIST}
+=== VALIDATION === ${VALIDATION_RULES}
+
+=== OUTPUT === Return ONLY valid JSON, no markdown, no explanation:
+${JSON_SCHEMA}
+Leave instagram, facebook, other_social empty in this pass — those are handled separately.`;
+    }
+
+    // ─── PASS 2: SOCIAL MEDIA ─────────────────────────────
+    function buildPass2Prompt(p, pass1Results) {
+      const foundWebsite = pass1Results?.website?.value || p.website || '';
+      return `You are a vacation rental SOCIAL MEDIA researcher. Find this property's Instagram, Facebook, and any other social profiles.
+
+Take your time. Be thorough. Execute EVERY search below.
+
+=== PROPERTY ===
+Title: ${p.title || 'N/A'} | Villa Name: ${p.villaName || 'N/A'}
+Host/Manager: ${p.host || 'N/A'} | Location: ${p.location}
+Airbnb URL: ${p.listingUrl || 'N/A'}
+${foundWebsite ? `Found Website: ${foundWebsite}` : ''}
+${p.instagram ? `Current Instagram (verify): ${p.instagram}` : ''}
+${p.facebook ? `Current Facebook (verify): ${p.facebook}` : ''}
+
+=== MANDATORY SEARCHES (execute ALL) ===
+1. "${p.name}" instagram.com
+2. "${p.name}" ${p.city} instagram
+3. "${p.name}" facebook.com
+4. "${p.name}" ${p.city} facebook page
+5. "${p.host || p.name}" instagram OR facebook ${p.city}
+6. "${p.name}" tiktok OR youtube OR linkedin
+7. "${p.name}" ${p.city} linktree OR bio.link OR linktr.ee
+${foundWebsite ? `8. Search: site:${foundWebsite.replace(/https?:\/\//,'')} instagram OR facebook OR social
+9. Visit ${foundWebsite} footer/about/contact for social media links` : ''}
+
+=== VALIDATION ===
+- Instagram & Facebook: Return FULL URL (https://instagram.com/name), NOT @handle.
+- Other Social Media: Comma-separated full URLs for TikTok, YouTube, LinkedIn, WhatsApp Business.
+- NEVER invent URLs. If unsure, leave empty.
+- Confidence: "High" = linked from villa's own website or in bio. "Medium" = 2+ sources confirm. "Low" = single source.
+
+=== OUTPUT === Return ONLY valid JSON:
+${JSON_SCHEMA}
+Leave phone, phone2, email, website, maps_url empty in this pass — those were handled separately.`;
+    }
+
+    // ─── PASS 3: IMAGE-BASED VISUAL IDENTIFICATION ────────
+    function buildPass3Prompt(p, mergedSoFar) {
+      const foundFields = [];
+      for (const [k,v] of Object.entries(mergedSoFar)) {
+        if (v?.value) foundFields.push(`${k}: ${v.value}`);
+      }
+      return `You are a vacation rental VISUAL IDENTIFICATION specialist. I need you to verify and expand on what we've found by using the property's listing image and cross-referencing.
+
+The main listing photo is at this URL:
+${p.mainImage || '(no image available)'}
+
+=== PROPERTY ===
+Title: ${p.title || 'N/A'} | Villa Name: ${p.villaName || 'N/A'}
+Host/Manager: ${p.host || 'N/A'} | Location: ${p.location}
+Airbnb URL: ${p.listingUrl || 'N/A'}
+
+=== ALREADY FOUND (verify these and look for anything missed) ===
+${foundFields.length > 0 ? foundFields.join('\n') : '(nothing found yet — search harder)'}
+
+=== YOUR TASK ===
+1. VISUAL IDENTIFICATION: Look at the image provided (or at the image URL above if inline image unavailable). Use Google reverse image search techniques — search for the image URL directly and note any property names that appear in Google's AI Overview or search results. If you identify a property name from the image, put it in "identified_name".
+2. Search: "${p.name}" ${p.city} site:google.com/maps
+3. Search: "${p.host || p.name}" ${p.city} review OR testimonial (often contain direct contact info)
+4. Search: "${p.name}" ${p.city} property manager company
+5. If nothing found yet, try broader: vacation rental ${p.city} "${p.host || ''}"
+6. ${p.mainImage ? `Search Google for the image URL: ${p.mainImage} — note any property names mentioned in AI Overview` : 'skip image search'}
+7. Look for Google Business Profile / Google Maps listing for this property
+
+For any fields already found, only return them again if you found BETTER data (higher confidence or more complete info). For empty fields, search aggressively.
+
+=== identified_name FIELD ===
+If the Google AI Overview or image search results mention a specific property name (different from what we already know), put that name in "identified_name.value". This will be used to search Google Maps. If no new name is found, leave it empty.
+
+=== BLOCKLIST === ${BLOCKLIST}
+=== VALIDATION === ${VALIDATION_RULES}
+
+=== OUTPUT === Return ONLY valid JSON:
+${JSON_SCHEMA}`;
+    }
+
+    // ─── GEMINI API CALL ───────────────────────────────────
+    async function callGemini(prompt, apiKey, model, imageParts) {
+      const parts = [{ text: prompt }];
+      // Add image if we have one (for Pass 3)
+      if (imageParts) parts.push(...imageParts);
+
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts }],
+            tools: [{ google_search: {} }],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 8192,
+            }
+          })
+        }
+      );
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error?.message || `API error: ${resp.status}`);
+      }
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message);
+
+      const candidate = data.candidates?.[0];
+      if (!candidate) throw new Error('No response candidate from Gemini.');
+
+      let text = '';
+      for (const part of (candidate.content?.parts || [])) {
+        if (part.text) text += part.text;
+      }
+
+      const grounding = candidate.groundingMetadata || {};
+      return { text, grounding };
+    }
+
+    // ─── MERGE PASS RESULTS ───────────────────────────────
+    // Higher-confidence findings win. Non-empty beats empty.
+    const CONF_RANK = { 'High': 3, 'Medium': 2, 'Low': 1, '': 0 };
+    function mergeResults(...passes) {
+      const merged = {};
+      const allQueries = [];
+      const FIELDS = ['phone','phone2','website','email','instagram','facebook','other_social','maps_url'];
+      for (const f of FIELDS) merged[f] = { value:'', confidence:'', source:'', evidence:'', belongs_to:'' };
+
+      for (const pass of passes) {
+        if (!pass?.result) continue;
+        if (pass.grounding?.webSearchQueries) allQueries.push(...pass.grounding.webSearchQueries);
+        for (const f of FIELDS) {
+          const incoming = pass.result[f];
+          if (!incoming?.value) continue;
+          const existing = merged[f];
+          const incomingRank = CONF_RANK[incoming.confidence || ''] || 0;
+          const existingRank = CONF_RANK[existing.confidence || ''] || 0;
+          // Take incoming if current is empty or incoming is higher confidence
+          if (!existing.value || incomingRank > existingRank) {
+            merged[f] = { ...existing, ...incoming };
+          }
+        }
+      }
+      return { merged, allQueries: [...new Set(allQueries)] };
+    }
+
+    // ─── TRY FETCH IMAGE AS BASE64 ────────────────────────
+    async function tryFetchImage(url) {
+      if (!url || !url.startsWith('http')) return null;
+      try {
+        const resp = await fetch(url, { mode: 'cors' });
+        if (!resp.ok) return null;
+        const blob = await resp.blob();
+        const mime = blob.type || 'image/jpeg';
+        const buffer = await blob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        return [{ inlineData: { mimeType: mime, data: base64 } }];
+      } catch {
+        return null; // CORS blocked — that's fine, we still include the URL in the prompt text
+      }
+    }
+
+    // ─── PARSE GEMINI RESPONSE ─────────────────────────────
+    function extractJSON(text) {
+      // Strategy 1: Try code-block extraction
+      const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlock) {
+        try { return JSON.parse(codeBlock[1].trim()); } catch {}
+      }
+      // Strategy 2: Find outermost { … }
+      let depth = 0, start = -1;
+      for (let i = 0; i < text.length; i++) {
+        if (text[i] === '{') { if (depth === 0) start = i; depth++; }
+        else if (text[i] === '}') {
+          depth--;
+          if (depth === 0 && start !== -1) {
+            try { return JSON.parse(text.slice(start, i + 1)); } catch {}
+          }
+        }
+      }
+      // Strategy 3: Try parsing the whole thing
+      try { return JSON.parse(text); } catch {}
+      throw new Error('Could not extract JSON from Gemini response.');
+    }
+
+    // ─── APPLY ENRICHMENTS ─────────────────────────────────
+    // Returns: { fields, findings }
+    // findings = everything Gemini found (for display in report)
+    // Only EMPTY cells in `fields` get written (setIfEmpty logic)
+    function applyEnrichments(originalFields, enrichment) {
+      const fields = [...originalFields];
+      while (fields.length < 74) fields.push('');
+
+      const findings = []; // what Gemini found — for report display
+      const REPORT_FIELDS = ['Phone','Phone2','Website','Email','Instagram','Facebook','Other Soc. Media'];
+
+      // Write value only if cell is currently empty. Returns true if written.
+      function setIfEmpty(colName, value) {
+        const idx = COL[colName];
+        if (idx === undefined || !value || !String(value).trim()) return false;
+        if (fields[idx] && fields[idx].trim()) return false;
+        fields[idx] = String(value).trim();
+        return true;
+      }
+
+      const e = enrichment;
+
+      // Map: primary field → its gemini data + meta columns
+      const fieldMap = [
+        { field: 'Phone',           data: e.phone,        confCol: 'Phone confidence',    evCol: 'Phone evidence',  srcCol: 'Phone source', belongsCol: 'Phone belongs to' },
+        { field: 'Phone2',          data: e.phone2,       confCol: 'Phone2 confidence',   evCol: 'Phone2 evidence' },
+        { field: 'Website',         data: e.website,      confCol: 'Website confidence' },
+        { field: 'Email',           data: e.email,        confCol: 'Email confidence' },
+        { field: 'Instagram',       data: e.instagram,    confCol: 'Instagram confidence' },
+        { field: 'Facebook',        data: e.facebook },
+        { field: 'Other Soc. Media',data: e.other_social },
+      ];
+
+      for (const fm of fieldMap) {
+        const val      = (fm.data?.value || '').trim();
+        const conf     = (fm.data?.confidence || '').trim();
+        const source   = (fm.data?.source || '').trim();
+        if (!val) continue;
+
+        const existingVal = (fields[COL[fm.field]] || '').trim();
+        const isNew       = setIfEmpty(fm.field, val);
+        const sameAsExisting = existingVal && existingVal.toLowerCase() === val.toLowerCase();
+
+        // Record finding for report regardless of whether it was new
+        if (REPORT_FIELDS.includes(fm.field)) {
+          let status;
+          if (isNew) status = 'new';
+          else if (sameAsExisting) status = 'confirmed';
+          else status = 'different'; // Gemini found something different from existing
+          findings.push({ field: fm.field, value: val, confidence: conf, source, status, existingValue: existingVal });
+        }
+
+        // Write meta columns only to empty cells
+        if (conf && fm.confCol) setIfEmpty(fm.confCol, conf);
+        if (fm.data?.evidence && fm.evCol) setIfEmpty(fm.evCol, fm.data.evidence);
+        if (source && fm.srcCol) setIfEmpty(fm.srcCol, source);
+        if (fm.data?.belongs_to && fm.belongsCol) setIfEmpty(fm.belongsCol, fm.data.belongs_to);
+      }
+
+      return { fields, findings };
+    }
+
+    // ─── RENDER REPORT ─────────────────────────────────────
+    function renderReport(findings, grounding, fields, enrichment) {
+      const body = document.getElementById('report-body');
+      let topHtml = '';
+
+      // ── Google Maps bar ──────────────────────────────────
+      const lat   = (fields[COL['Latitude']]  || '').trim();
+      const lng   = (fields[COL['Longitude']] || '').trim();
+      const title = (fields[COL['Title']] || fields[COL['villaName']] || fields[COL['Villa name']] || fields[COL['Airbnb name']] || '').trim();
+      const city  = (fields[COL['City']] || '').trim();
+      const bizUrl = enrichment?.maps_url?.value?.trim() || '';
+
+      let coordUrl = '';
+      if (lat && lng && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
+        coordUrl = `https://www.google.com/maps?q=${encodeURIComponent(lat)},${encodeURIComponent(lng)}&z=17`;
+      }
+      const searchQuery = [title, city].filter(Boolean).join(' ');
+      const searchUrl = searchQuery ? `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}` : '';
+
+      if (coordUrl || bizUrl || searchUrl) {
+        topHtml += '<div class="maps-link-bar">';
+        topHtml += '<span class="maps-icon">📍</span>';
+        topHtml += '<div class="maps-info">';
+        topHtml += '<div class="maps-label">Property Location</div>';
+        if (lat && lng) {
+          topHtml += `<div class="maps-coords">${lat}, ${lng}</div>`;
+        } else {
+          topHtml += `<div class="maps-coords" style="color:var(--text-muted);font-style:italic;">No coordinates — using name search</div>`;
+        }
+        topHtml += '</div>';
+        if (bizUrl)   topHtml += `<a href="${escapeHtml(bizUrl)}" target="_blank" rel="noopener" class="btn btn-maps-biz">🏢 Google Business Profile</a>`;
+        if (coordUrl) topHtml += `<a href="${escapeHtml(coordUrl)}" target="_blank" rel="noopener" class="btn btn-maps">📍 Open on Maps</a>`;
+        else if (searchUrl) topHtml += `<a href="${escapeHtml(searchUrl)}" target="_blank" rel="noopener" class="btn btn-maps">🔍 Search on Maps</a>`;
+        topHtml += '</div>';
+      }
+
+      // ── Google Lens bar ──────────────────────────────────
+      const mainImage = (fields[COL['Main Listing Image']] || '').trim();
+      if (mainImage && mainImage.startsWith('http')) {
+        const lensUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(mainImage)}`;
+        topHtml += '<div class="lens-bar">';
+        topHtml += '<span class="lens-icon">🔍</span>';
+        topHtml += '<div class="lens-info">Reverse image search the Airbnb listing photo — if a property name appears in Google\'s AI Overview, it will be used to find the listing on Maps</div>';
+        topHtml += `<a href="${escapeHtml(lensUrl)}" target="_blank" rel="noopener" class="btn btn-lens">📷 Google Lens</a>`;
+        topHtml += '</div>';
+      }
+
+      // ── Identified-name Maps link (from Pass 3 image search) ─
+      const identifiedName = enrichment?.identified_name?.value?.trim() || '';
+      const identifiedSource = enrichment?.identified_name?.source?.trim() || '';
+      if (identifiedName) {
+        const idMapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(identifiedName + ' ' + city)}`;
+        topHtml += '<div class="maps-link-bar" style="border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.07);">';
+        topHtml += '<span class="maps-icon">🏷️</span>';
+        topHtml += '<div class="maps-info">';
+        topHtml += `<div class="maps-label">Name identified from image search: <strong style="color:var(--text-primary)">${escapeHtml(identifiedName)}</strong></div>`;
+        if (identifiedSource) topHtml += `<div class="maps-coords" style="color:var(--text-muted);font-size:0.7rem">${escapeHtml(identifiedSource)}</div>`;
+        topHtml += '</div>';
+        topHtml += `<a href="${escapeHtml(idMapsUrl)}" target="_blank" rel="noopener" class="btn btn-maps-biz">🗺️ Find on Maps</a>`;
+        topHtml += '</div>';
+      }
+
+      body.innerHTML = topHtml;
+
+      // ── Findings table ───────────────────────────────────
+      if (findings.length === 0) {
+        body.innerHTML += '<div style="color:var(--text-muted); font-size:0.82rem; padding:0.75rem 0;">⚠️ Gemini could not find any contact data for this property. Check the console (F12) for the raw AI response.</div>';
+      } else {
+        let html = '<table class="report-table"><thead><tr>';
+        html += '<th>Field</th><th>Value Found by AI</th><th>Status</th><th>Confidence</th><th>Source / Reasoning</th>';
+        html += '</tr></thead><tbody>';
+
+        for (const f of findings) {
+          const confClass = f.confidence === 'High' ? 'badge-high' : f.confidence === 'Medium' ? 'badge-medium' : 'badge-low';
+
+          let statusBadge;
+          if (f.status === 'new') {
+            statusBadge = '<span class="badge badge-high">✅ NEW</span>';
+          } else if (f.status === 'confirmed') {
+            statusBadge = '<span class="badge" style="background:rgba(99,140,255,0.12);color:var(--accent);">✓ CONFIRMED</span>';
+          } else {
+            statusBadge = '<span class="badge" style="background:rgba(251,191,36,0.12);color:var(--conf-med);">⚠ DIFFERENT</span>';
+          }
+
+          // Make URLs clickable and phone numbers tel: links
+          function renderValue(val) {
+            if (!val) return escapeHtml(val);
+            if (/^https?:\/\//i.test(val)) {
+              return `<a href="${escapeHtml(val)}" target="_blank" rel="noopener" class="field-value-link">${escapeHtml(val)}</a>`;
+            }
+            if (/^wa\.me\//i.test(val)) {
+              return `<a href="https://${escapeHtml(val)}" target="_blank" rel="noopener" class="field-value-link">${escapeHtml(val)}</a>`;
+            }
+            if (/^[\+\d]/.test(val) && /^[\+\d\s\-\(\)]{7,}$/.test(val)) {
+              const cleaned = val.replace(/[\s\-\(\)]/g, '');
+              return `<a href="tel:${escapeHtml(cleaned)}" class="field-value-link">${escapeHtml(val)}</a>`;
+            }
+            return `<span class="field-value">${escapeHtml(val)}</span>`;
+          }
+
+          // Make source/reasoning clickable if it contains a URL or domain
+          function renderSource(src) {
+            if (!src) return '—';
+            // Full URL in source
+            const urlMatch = src.match(/https?:\/\/[^\s]+/);
+            if (urlMatch) {
+              const url = urlMatch[0].replace(/[.,;)]+$/, ''); // strip trailing punctuation
+              const label = escapeHtml(src);
+              return label.replace(escapeHtml(url), `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="source-link">${escapeHtml(url)}</a>`);
+            }
+            // Bare domain (e.g. sewavillabdg.com or www.example.com)
+            const domainMatch = src.match(/(?:^|\s)((?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?(?:\/[^\s]*)?)/);
+            if (domainMatch) {
+              const domain = domainMatch[1];
+              const url = `https://${domain}`;
+              return escapeHtml(src).replace(escapeHtml(domain), `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="source-link">${escapeHtml(domain)}</a>`);
+            }
+            return escapeHtml(src);
+          }
+
+          let valueCell = renderValue(f.value);
+          if (f.status === 'different' && f.existingValue) {
+            valueCell += `<div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.2rem;">Was: ${escapeHtml(f.existingValue)}</div>`;
+          }
+
+          html += `<tr>
+            <td class="field-name">${escapeHtml(f.field)}</td>
+            <td>${valueCell}</td>
+            <td style="white-space:nowrap">${statusBadge}</td>
+            <td>${f.confidence ? `<span class="badge ${confClass}">${f.confidence}</span>` : '—'}</td>
+            <td class="source-text">${renderSource(f.source)}</td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+        body.innerHTML += html;
+      }
+
+      // ── Google Search queries ────────────────────────────
+      const queries = grounding?.webSearchQueries || [];
+      if (queries.length > 0) {
+        let qhtml = '<div class="search-queries"><h4>🔎 Google Searches Performed</h4>';
+        for (const q of queries) qhtml += `<div class="search-query">• ${escapeHtml(q)}</div>`;
+        qhtml += '</div>';
+        body.innerHTML += qhtml;
+      }
+    }
+
+    // ─── LOADING STATE ─────────────────────────────────────
+    function setLoading(show, text, progress) {
+      const card = document.getElementById('loading-card');
+      const bar = document.getElementById('loading-bar');
+      const txt = document.getElementById('loading-text');
+      if (show) {
+        card.classList.remove('hidden');
+        txt.textContent = text || 'Processing…';
+        bar.style.width = (progress || 0) + '%';
+      } else {
+        card.classList.add('hidden');
+      }
+    }
+
+    // ─── PASS LOG UI ───────────────────────────────────────
+    function updatePassLog(passNum, state, desc, findingCount) {
+      const log = document.getElementById('pass-log');
+      let entry = document.getElementById(`pass-${passNum}`);
+      if (!entry) {
+        entry = document.createElement('div');
+        entry.id = `pass-${passNum}`;
+        entry.className = 'pass-entry';
+        log.appendChild(entry);
+      }
+      const labels = { 1: 'PASS 1', 2: 'PASS 2', 3: 'PASS 3' };
+      const stateClass = state === 'active' ? 'active' : state === 'done' ? 'done' : '';
+      const findings = findingCount != null ? `<span class="pass-findings"> → ${findingCount} field${findingCount !== 1 ? 's' : ''} found</span>` : '';
+      entry.innerHTML = `<span class="pass-num ${stateClass}">${labels[passNum] || `PASS ${passNum}`}</span><span class="pass-desc">${desc}${findings}</span>`;
+    }
+
+    // ─── MAIN ENRICH HANDLER (3-PASS DEEP RESEARCH) ───────
+    async function handleEnrich() {
+      const apiKey = document.getElementById('api-key').value.trim();
+      const model = document.getElementById('model-select').value;
+      const inputText = document.getElementById('input-area').value;
+
+      if (!apiKey) { alert('Please enter your Gemini API key.'); return; }
+      if (!inputText.trim()) { alert('Please paste an Excel row first.'); return; }
+
+      parsedFields = parseTSVRow(inputText);
+      renderPreview();
+
+      if (parsedFields.length < 10) {
+        alert(`Only ${parsedFields.length} columns detected. Expected 74.`);
+        return;
+      }
+
+      const btn = document.getElementById('enrich-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Deep Research…';
+      document.getElementById('output-card').classList.add('hidden');
+      document.getElementById('report-card').classList.add('hidden');
+      document.getElementById('pass-log').innerHTML = '';
+
+      const p = getPropertyData(parsedFields);
+      const passes = []; // { result, grounding, passNum }
+
+      try {
+        // ──── PASS 1: Website + Phone + Email ────────────────
+        setLoading(true, 'Pass 1/3 — Searching for website, phone, email…', 10);
+        updatePassLog(1, 'active', 'Searching for website, phone, email…');
+        const prompt1 = buildPass1Prompt(p);
+        const resp1 = await callGemini(prompt1, apiKey, model);
+        let result1 = null;
+        try { result1 = extractJSON(resp1.text); } catch { console.warn('Pass 1 JSON parse failed:', resp1.text); }
+        const p1count = result1 ? Object.values(result1).filter(v => v?.value).length : 0;
+        passes.push({ result: result1, grounding: resp1.grounding, passNum: 1 });
+        updatePassLog(1, 'done', 'Website, phone, email search', p1count);
+        console.log('Pass 1 result:', result1);
+
+        // ──── PASS 2: Social Media ───────────────────────────
+        setLoading(true, 'Pass 2/3 — Searching Instagram, Facebook, socials…', 40);
+        updatePassLog(2, 'active', 'Searching Instagram, Facebook, social media…');
+        const prompt2 = buildPass2Prompt(p, result1);
+        const resp2 = await callGemini(prompt2, apiKey, model);
+        let result2 = null;
+        try { result2 = extractJSON(resp2.text); } catch { console.warn('Pass 2 JSON parse failed:', resp2.text); }
+        const p2count = result2 ? Object.values(result2).filter(v => v?.value).length : 0;
+        passes.push({ result: result2, grounding: resp2.grounding, passNum: 2 });
+        updatePassLog(2, 'done', 'Social media search', p2count);
+        console.log('Pass 2 result:', result2);
+
+        // ──── PASS 3: Visual identification + verification ───
+        setLoading(true, 'Pass 3/3 — Visual identification + cross-verification…', 70);
+        updatePassLog(3, 'active', 'Image-based verification + deep search…');
+        const mergedSoFar = mergeResults(passes[0], passes[1]).merged;
+        const prompt3 = buildPass3Prompt(p, mergedSoFar);
+        // Try to include the actual image for Gemini's vision
+        let imageParts = null;
+        if (p.mainImage) {
+          imageParts = await tryFetchImage(p.mainImage);
+        }
+        const resp3 = await callGemini(prompt3, apiKey, model, imageParts);
+        let result3 = null;
+        try { result3 = extractJSON(resp3.text); } catch { console.warn('Pass 3 JSON parse failed:', resp3.text); }
+        const p3count = result3 ? Object.values(result3).filter(v => v?.value).length : 0;
+        passes.push({ result: result3, grounding: resp3.grounding, passNum: 3 });
+        updatePassLog(3, 'done', 'Visual identification + verification', p3count);
+        console.log('Pass 3 result:', result3);
+
+        // ──── MERGE ALL PASSES ────────────────────────────────
+        setLoading(true, 'Merging results from all 3 passes…', 90);
+        const { merged: finalEnrichment, allQueries } = mergeResults(...passes);
+        console.log('Final merged enrichment:', finalEnrichment);
+
+        // Apply to row
+        const { fields: enrichedFields, findings } = applyEnrichments(parsedFields, finalEnrichment);
+        enrichedRow = enrichedFields;
+
+        // Render
+        document.getElementById('output-area').value = fieldsToTSV(enrichedFields);
+        document.getElementById('output-card').classList.remove('hidden');
+
+        renderReport(findings, { webSearchQueries: allQueries }, parsedFields, finalEnrichment);
+        document.getElementById('report-card').classList.remove('hidden');
+
+        const newCount = findings.filter(f => f.status === 'new').length;
+        const confirmedCount = findings.filter(f => f.status === 'confirmed').length;
+        const totalFound = findings.length;
+        const statusMsg = `✅ 3-pass research complete — ${totalFound} field${totalFound !== 1 ? 's' : ''} found (${newCount} new, ${confirmedCount} confirmed)`;
+        setLoading(true, statusMsg, 100);
+        setTimeout(() => setLoading(false), 3000);
+
+      } catch (err) {
+        setLoading(false);
+        alert(`Enrichment failed: ${err.message}`);
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Enrich';
+      }
+    }
+
+    // ─── COPY TO CLIPBOARD ─────────────────────────────────
+    function copyRow() {
+      const text = document.getElementById('output-area').value;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied to clipboard!');
+      }).catch(() => {
+        const ta = document.getElementById('output-area');
+        ta.select(); document.execCommand('copy');
+        showToast('Copied to clipboard!');
+      });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // ─── MAP GROUNDING ─────────────────────────────────────
+    // Persist Maps API key separately
+    (function initMaps() {
+      const saved = localStorage.getItem('villa_maps_apikey');
+      if (saved) document.getElementById('maps-api-key').value = saved;
+      document.getElementById('maps-api-key').addEventListener('change', e => {
+        localStorage.setItem('villa_maps_apikey', e.target.value);
+      });
+      // Auto-fill lat/lng from TSV input if coords exist
+      document.getElementById('input-area').addEventListener('input', () => {
+        const fields = parseTSVRow(document.getElementById('input-area').value);
+        const lat = (fields[COL['Latitude']]  || '').trim();
+        const lng = (fields[COL['Longitude']] || '').trim();
+        if (lat && lng && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
+          document.getElementById('map-lat').value = lat;
+          document.getElementById('map-lng').value = lng;
+        }
+      });
+    })();
+
+    function toggleMapType(pill) {
+      pill.classList.toggle('active');
+    }
+
+    function mapStatus(msg, spinning) {
+      const el = document.getElementById('map-status');
+      if (!msg) { el.innerHTML = ''; return; }
+      el.innerHTML = spinning
+        ? `<div class="map-spinner"></div><span>${msg}</span>`
+        : `<span>${msg}</span>`;
+    }
+
+    // Haversine distance in meters
+    function haversine(lat1, lng1, lat2, lng2) {
+      const R = 6371000;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+      return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    }
+
+    async function handleMapScan() {
+      const mapsKey = document.getElementById('maps-api-key').value.trim();
+      const latRaw  = document.getElementById('map-lat').value.trim();
+      const lngRaw  = document.getElementById('map-lng').value.trim();
+      const radius  = parseInt(document.getElementById('map-radius').value, 10);
+
+      if (!mapsKey) { alert('Please enter your Google Maps API key.'); return; }
+      const lat = parseFloat(latRaw), lng = parseFloat(lngRaw);
+      if (isNaN(lat) || isNaN(lng)) { alert('Please enter valid Latitude and Longitude numbers.'); return; }
+
+      // Collect active types
+      const activePills = [...document.querySelectorAll('.map-type-pill.active')];
+      const types = activePills.map(p => p.dataset.type);
+      if (types.length === 0) { alert('Please select at least one place type.'); return; }
+
+      const btn = document.getElementById('map-scan-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Scanning…';
+      document.getElementById('place-grid').innerHTML = '';
+      mapStatus(`Scanning ${radius}m radius around ${lat.toFixed(5)}, ${lng.toFixed(5)}…`, true);
+
+      try {
+        // Run a Nearby Search for each type and merge results
+        const allPlaces = new Map(); // placeId → place
+
+        for (const type of types) {
+          const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
+            `?location=${lat},${lng}&radius=${radius}&type=${type}&key=${mapsKey}`;
+
+          // NOTE: Direct browser fetch to Maps API is blocked by CORS.
+          // We use a JSONP-style approach via the Places JS API embed instead.
+          // Fallback: use the Places Web Service via a proxy hint or show links.
+          // For a pure HTML file, we use the Maps JS API dynamically loaded.
+          const results = await fetchNearbyPlaces(lat, lng, radius, type, mapsKey);
+          for (const place of results) {
+            if (!allPlaces.has(place.place_id)) {
+              allPlaces.set(place.place_id, place);
+            }
+          }
+        }
+
+        const places = [...allPlaces.values()];
+
+        // Sort: places with photos + high review count first
+        places.sort((a, b) => {
+          const aHasPhotos = (a.photos && a.photos.length > 0) ? 1 : 0;
+          const bHasPhotos = (b.photos && b.photos.length > 0) ? 1 : 0;
+          if (bHasPhotos !== aHasPhotos) return bHasPhotos - aHasPhotos;
+          const aReviews = a.user_ratings_total || 0;
+          const bReviews = b.user_ratings_total || 0;
+          return bReviews - aReviews;
+        });
+
+        mapStatus(`Found <strong style="color:var(--text-primary)">${places.length} places</strong> within ${radius}m`, false);
+        renderPlaceGrid(places, lat, lng, mapsKey);
+
+      } catch (err) {
+        mapStatus(`❌ Error: ${err.message}`, false);
+        console.error('Map scan error:', err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Scan Area';
+      }
+    }
+
+    // Load Maps JS API dynamically and use Places service
+    let _mapsApiLoaded = false;
+    let _mapsApiPromise = null;
+
+    function loadMapsApi(apiKey) {
+      if (_mapsApiPromise) return _mapsApiPromise;
+      _mapsApiPromise = new Promise((resolve, reject) => {
+        if (window.google && window.google.maps && window.google.maps.places) {
+          resolve(); return;
+        }
+        window.__mapsInitCb = resolve;
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=__mapsInitCb`;
+        script.async = true;
+        script.onerror = () => reject(new Error('Failed to load Google Maps API. Check your API key.'));
+        document.head.appendChild(script);
+      });
+      return _mapsApiPromise;
+    }
+
+    function getOrCreateMapDiv() {
+      let mapDiv = document.getElementById('_hidden_map');
+      if (!mapDiv) {
+        mapDiv = document.createElement('div');
+        mapDiv.id = '_hidden_map';
+        mapDiv.style.cssText = 'width:1px;height:1px;position:absolute;top:-9999px;left:-9999px;';
+        document.body.appendChild(mapDiv);
+      }
+      return mapDiv;
+    }
+
+    let _sharedMap = null;
+    function getSharedMap(lat, lng) {
+      const mapDiv = getOrCreateMapDiv();
+      if (!_sharedMap) {
+        _sharedMap = new google.maps.Map(mapDiv, { center: { lat, lng }, zoom: 15 });
+      }
+      return _sharedMap;
+    }
+
+    async function fetchNearbyPlaces(lat, lng, radius, type, apiKey) {
+      await loadMapsApi(apiKey);
+      return new Promise((resolve, reject) => {
+        const map = getSharedMap(lat, lng);
+        const service = new google.maps.places.PlacesService(map);
+        service.nearbySearch({
+          location: { lat, lng },
+          radius,
+          type
+        }, (results, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK) {
+            resolve(results || []);
+          } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+            resolve([]);
+          } else {
+            reject(new Error(`Places API error: ${status}`));
+          }
+        });
+      });
+    }
+
+    // Fetch full place details: photos + phone + website
+    function fetchPlaceDetails(placeId, apiKey, existingPhotos) {
+      return new Promise((resolve) => {
+        try {
+          const map = getSharedMap(0, 0);
+          const service = new google.maps.places.PlacesService(map);
+          service.getDetails({
+            placeId,
+            fields: ['photos', 'formatted_phone_number', 'website']
+          }, (result, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && result) {
+              resolve({
+                photos: (result.photos || existingPhotos || []).slice(0, 3),
+                phone: result.formatted_phone_number || '',
+                website: result.website || ''
+              });
+            } else {
+              resolve({ photos: (existingPhotos || []).slice(0, 3), phone: '', website: '' });
+            }
+          });
+        } catch (e) {
+          resolve({ photos: (existingPhotos || []).slice(0, 3), phone: '', website: '' });
+        }
+      });
+    }
+
+    // Build photo carousel HTML
+    function buildCarousel(photos, placeName, apiKey, cardIndex) {
+      if (photos.length === 0) {
+        return `<div class="place-carousel"><div class="place-photo-placeholder">🏠</div></div>`;
+      }
+      const urls = photos.map(photo => {
+        const ref = photo.photo_reference;
+        if (ref) return getPhotoUrl(ref, apiKey, 600);
+        if (photo.getUrl) { try { return photo.getUrl({ maxWidth: 600 }); } catch(e) { return ''; } }
+        return '';
+      }).filter(u => u);
+
+      if (urls.length === 0) {
+        return `<div class="place-carousel"><div class="place-photo-placeholder">🏠</div></div>`;
+      }
+
+      const slides = urls.map(url =>
+        `<div class="place-carousel-slide"><img src="${url}" alt="${escapeHtml(placeName)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+      ).join('');
+
+      const dots = urls.length > 1
+        ? `<div class="carousel-dots">${urls.map((_, di) => `<div class="carousel-dot${di===0?' active':''}" id="dot-${cardIndex}-${di}"></div>`).join('')}</div>`
+        : '';
+
+      const arrows = urls.length > 1 ? `
+        <button class="carousel-btn prev" onclick="carouselNav('${cardIndex}',-1)" aria-label="Previous">&#8249;</button>
+        <button class="carousel-btn next" onclick="carouselNav('${cardIndex}',1)" aria-label="Next">&#8250;</button>` : '';
+
+      return `<div class="place-carousel" id="carousel-${cardIndex}" data-index="0" data-total="${urls.length}">
+        <div class="place-carousel-track" id="carousel-track-${cardIndex}">${slides}</div>
+        ${arrows}${dots}
+      </div>`;
+    }
+
+    function carouselNav(cardIndex, dir) {
+      const carousel = document.getElementById(`carousel-${cardIndex}`);
+      if (!carousel) return;
+      const total = parseInt(carousel.dataset.total);
+      let idx = parseInt(carousel.dataset.index);
+      idx = (idx + dir + total) % total;
+      carousel.dataset.index = idx;
+      const track = document.getElementById(`carousel-track-${cardIndex}`);
+      if (track) track.style.transform = `translateX(-${idx * 100}%)`;
+      // Update dots
+      for (let d = 0; d < total; d++) {
+        const dot = document.getElementById(`dot-${cardIndex}-${d}`);
+        if (dot) dot.classList.toggle('active', d === idx);
+      }
+    }
+
+    function getPhotoUrl(photoRef, apiKey, maxWidth = 400) {
+      return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${photoRef}&key=${apiKey}`;
+    }
+
+    async function renderPlaceGrid(places, originLat, originLng, apiKey) {
+      const grid = document.getElementById('place-grid');
+      if (places.length === 0) {
+        grid.innerHTML = `<div class="map-empty">
+          <div class="map-empty-icon">🏝️</div>
+          <div>No places found in this area. Try increasing the radius or selecting different types.</div>
+        </div>`;
+        return;
+      }
+
+      // Render skeleton cards first
+      grid.innerHTML = places.map((place, i) => `
+        <div class="place-card" id="place-card-${i}">
+          <div class="place-photos one-photo"><div class="place-photo-placeholder" style="opacity:0.4;animation:pulse 1.5s ease-in-out infinite">⏳</div></div>
+          <div class="place-info">
+            <div class="place-name">${escapeHtml(place.name)}</div>
+            <div class="place-meta"><span class="place-reviews" style="opacity:0.5">Loading photos…</span></div>
+          </div>
+        </div>`).join('');
+
+      // Fetch details + photos + phone + website for each place
+      for (let i = 0; i < places.length; i++) {
+        const place = places[i];
+        const dist = haversine(originLat, originLng,
+          place.geometry.location.lat(), place.geometry.location.lng());
+        const distLabel = dist < 1000 ? `${dist}m away` : `${(dist/1000).toFixed(1)}km away`;
+
+        // Fetch details (photos + phone + website)
+        const details = await fetchPlaceDetails(place.place_id, apiKey, place.photos || []);
+        const { photos: topPhotos, phone, website } = details;
+
+        // Build carousel
+        const carouselHtml = buildCarousel(topPhotos, place.name, apiKey, i);
+
+        // Rating
+        const ratingHtml = place.rating
+          ? `<span class="place-rating">★ ${place.rating}</span><span class="place-reviews">(${(place.user_ratings_total||0).toLocaleString()} reviews)</span>`
+          : `<span class="place-reviews" style="opacity:0.5">No reviews</span>`;
+
+        // Type label
+        const typeLabel = (place.types?.[0] || '').replace(/_/g, ' ');
+
+        // Contact info
+        let contactHtml = '';
+        if (phone || website) {
+          contactHtml = `<div class="place-contact">`;
+          if (phone) {
+            contactHtml += `<a href="tel:${phone.replace(/\s/g,'')}">📞 ${escapeHtml(phone)}</a>`;
+          }
+          if (website) {
+            let displayUrl = website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+            if (displayUrl.length > 35) displayUrl = displayUrl.slice(0, 35) + '…';
+            contactHtml += `<a href="${escapeHtml(website)}" target="_blank" rel="noopener">🌐 ${escapeHtml(displayUrl)}</a>`;
+          }
+          contactHtml += `</div>`;
+        }
+
+        // Links
+        const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${place.place_id}`;
+        const streetUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${place.geometry.location.lat()},${place.geometry.location.lng()}`;
+
+        const card = document.getElementById(`place-card-${i}`);
+        if (card) {
+          card.innerHTML = `
+            ${carouselHtml}
+            <div class="place-info">
+              <div class="place-name" title="${escapeHtml(place.name)}">${escapeHtml(place.name)}</div>
+              <div class="place-meta">
+                ${ratingHtml}
+                ${typeLabel ? `<span class="place-type">${escapeHtml(typeLabel)}</span>` : ''}
+              </div>
+              ${place.vicinity ? `<div class="place-address">${escapeHtml(place.vicinity)}</div>` : ''}
+              ${contactHtml}
+              <div class="place-distance">📍 ${distLabel}</div>
+              <div class="place-actions">
+                <a href="${mapsUrl}" target="_blank" rel="noopener" class="btn-place btn-place-maps">🗺️ Maps</a>
+                <a href="${streetUrl}" target="_blank" rel="noopener" class="btn-place btn-place-street">🚶 Street View</a>
+              </div>
+            </div>`;
+        }
+      }
+    }
+  </script>
+</body>
+</html>
