@@ -574,7 +574,7 @@
         <label for="model-select">Model</label>
         <select id="model-select">
           <option value="gemini-2.5-pro">Gemini 2.5 Pro (deepest)</option>
-          <option value="gemini-2.5-flash">Gemini 2.5 Flash (fast + smart)</option>
+          <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (fast + smart)</option>
           <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
           <option value="gemini-1.5-flash">Gemini 1.5 Flash (lightest)</option>
         </select>
@@ -824,7 +824,7 @@
         count.textContent = '';
         return;
       }
-      count.textContent = `${parsedFields.length} columns parsed${parsedFields.length !== 74 ? ' ⚠️ expected 74' : ' ✓'}`;
+      count.textContent = `${parsedFields.length} columns parsed${parsedFields.length !== 74 ? ' ⚠️ expected 74 — contact Kris' : ' ✓'}`;
       count.style.color = parsedFields.length === 74 ? 'var(--conf-high)' : 'var(--conf-med)';
       let html = '';
       for (let i = 0; i < Math.max(parsedFields.length, 74); i++) {
@@ -1194,22 +1194,7 @@ ${JSON_SCHEMA}`;
       const searchQuery = [title, city].filter(Boolean).join(' ');
       const searchUrl = searchQuery ? `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}` : '';
 
-      if (coordUrl || bizUrl || searchUrl) {
-        topHtml += '<div class="maps-link-bar">';
-        topHtml += '<span class="maps-icon">📍</span>';
-        topHtml += '<div class="maps-info">';
-        topHtml += '<div class="maps-label">Property Location</div>';
-        if (lat && lng) {
-          topHtml += `<div class="maps-coords">${lat}, ${lng}</div>`;
-        } else {
-          topHtml += `<div class="maps-coords" style="color:var(--text-muted);font-style:italic;">No coordinates — using name search</div>`;
-        }
-        topHtml += '</div>';
-        if (bizUrl)   topHtml += `<a href="${escapeHtml(bizUrl)}" target="_blank" rel="noopener" class="btn btn-maps-biz">🏢 Google Business Profile</a>`;
-        if (coordUrl) topHtml += `<a href="${escapeHtml(coordUrl)}" target="_blank" rel="noopener" class="btn btn-maps">📍 Open on Maps</a>`;
-        else if (searchUrl) topHtml += `<a href="${escapeHtml(searchUrl)}" target="_blank" rel="noopener" class="btn btn-maps">🔍 Search on Maps</a>`;
-        topHtml += '</div>';
-      }
+
 
       // ── Google Lens bar ──────────────────────────────────
       const mainImage = (fields[COL['Main Listing Image']] || '').trim();
