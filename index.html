@@ -706,7 +706,7 @@
       "Airbnb name","Outreach Status",
       "Last Contact Date (MM-DD-YY)","Follow-Up Date (MM-DD-YY)",
       "Outreach Notes","First contact (mm-dd-yy)","Attempts",
-      "Phone","Phone confidence","Phone2","Phone2 confidence",
+      "Phone","Contact","Phone confidence","Phone2","Phone2 confidence",
       "Website","Website confidence","Email","Email confidence",
       "Instagram","Instagram confidence","Facebook",
       "Insta Status","Other Soc. Media","Phone evidence","Phone2 evidence",
@@ -721,7 +721,7 @@
       "Reserved Days","Number of Bookings","Last Update",
       "City","State","Country","Main Listing Image",
       "Airbnb Property ID","Vrbo Property ID","Latitude","Longitude",
-      "Villa name","Contact"
+      "Villa name"
     ];
     const COL = {};
     COLUMNS.forEach((n, i) => COL[n] = i);
@@ -824,10 +824,10 @@
         count.textContent = '';
         return;
       }
-      count.textContent = `${parsedFields.length} columns parsed${parsedFields.length !== 74 ? ' ⚠️ expected 74 — contact Kris' : ' ✓'}`;
-      count.style.color = parsedFields.length === 74 ? 'var(--conf-high)' : 'var(--conf-med)';
+      count.textContent = `${parsedFields.length} columns parsed${parsedFields.length !== 75 ? ' ⚠️ expected 75 — contact Kris' : ' ✓'}`;
+      count.style.color = parsedFields.length === 75 ? 'var(--conf-high)' : 'var(--conf-med)';
       let html = '';
-      for (let i = 0; i < Math.max(parsedFields.length, 74); i++) {
+      for (let i = 0; i < Math.max(parsedFields.length, 75); i++) {
         const name = COLUMNS[i] || `Col ${i + 1}`;
         const val = parsedFields[i] ?? '';
         const isEmpty = !val.trim();
